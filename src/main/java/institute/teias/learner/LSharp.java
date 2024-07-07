@@ -305,4 +305,30 @@ public class LSharp<I, O> {
             }
         }
     }
+
+    @Override
+    public String toString() {
+        StringBuilder buffer = new StringBuilder();
+        buffer.append("##################################################\n");
+        buffer.append("observation tree: \n");
+        buffer.append(observationTree.toString());
+        buffer.append("\n");
+        buffer.append("basis: \n");
+        for (Node<I, O> b : this.basis) {
+            if (b.getInputOutput() != null) {
+                buffer.append(b.getInputOutput().first()).append("|").append(b.getInputOutput().second());
+            }
+            buffer.append(this.observationTree.getAccessSequence(b)).append("\n");
+        }
+        buffer.append("\n").append("frontier: \n");
+        for (Map.Entry<Node<I, O>, HashSet<Node<I, O>>> f : this.frontierToBasisMap.entrySet()) {
+            buffer.append(this.observationTree.getAccessSequence(f.getKey())).append("  :  ");
+            for (Node<I, O> b : f.getValue()) {
+                buffer.append(this.observationTree.getAccessSequence(b)).append(" - ");
+            }
+            buffer.append("\n");
+        }
+        buffer.append("____________________________________________________\n");
+        return buffer.toString();
+    }
 }
