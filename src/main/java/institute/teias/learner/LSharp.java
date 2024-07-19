@@ -6,7 +6,7 @@ import institute.teias.obsTree.Node;
 import institute.teias.obsTree.NormalObservationTree;
 import institute.teias.obsTree.ObservationTree;
 import institute.teias.oracles.OutputOracle;
-import institute.teias.oracles.TestOracle;
+import institute.teias.oracles.test.TestOracle;
 import institute.teias.utils.Pair;
 import net.automatalib.alphabet.Alphabet;
 import net.automatalib.alphabet.Alphabets;

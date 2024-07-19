@@ -1,16 +1,14 @@
 package institute.teias;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 
 import de.learnlib.driver.simulator.MealySimulatorSUL;
 import de.learnlib.sul.SUL;
 import institute.teias.io.FileManager;
 import institute.teias.learner.LSharp;
 import institute.teias.oracles.OutputOracle;
-import institute.teias.oracles.TestOracle;
+import institute.teias.oracles.test.TestOracle;
 import net.automatalib.automaton.transducer.CompactMealy;
 
 public class Main {

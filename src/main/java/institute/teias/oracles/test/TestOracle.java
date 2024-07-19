@@ -1,14 +1,13 @@
-package institute.teias.oracles;
+package institute.teias.oracles.test;
 
 import de.learnlib.filter.statistic.sul.ResetCounterSUL;
 import de.learnlib.filter.statistic.sul.SymbolCounterSUL;
 import de.learnlib.oracle.EquivalenceOracle;
-import de.learnlib.oracle.equivalence.RandomWordsEQOracle;
 import de.learnlib.oracle.equivalence.mealy.RandomWalkEQOracle;
-import de.learnlib.oracle.membership.SULOracle;
 import de.learnlib.query.DefaultQuery;
 import de.learnlib.statistic.StatisticSUL;
 import de.learnlib.sul.SUL;
+import institute.teias.oracles.Oracle;
 import institute.teias.utils.Pair;
 import net.automatalib.automaton.transducer.CompactMealy;
 import net.automatalib.automaton.transducer.MealyMachine;
