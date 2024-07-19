@@ -2,7 +2,7 @@ package institute.teias.oracles;
 
 import de.learnlib.oracle.MembershipOracle;
 import de.learnlib.oracle.membership.SULOracle;
-import de.learnlib.sul.SUL;
+import net.automatalib.automaton.transducer.CompactMealy;
 import net.automatalib.word.Word;
 import net.automatalib.word.WordBuilder;
 
@@ -16,18 +16,19 @@ public class OutputOracle<I, O> extends Oracle<I, O> {
     private int resets = 0;
     private int inputSymbols = 0;
 
-    public OutputOracle(SUL<I, O> sul) {
+    public OutputOracle(CompactMealy<I, O> reference) {
+        super(reference);
         this.membershipOracle = new SULOracle<>(sul);
     }
 
     @Override
-    public String getSymbolsCount() {
-        return "symbolCounter [Symbols]: " + this.inputSymbols;
+    public int getSymbolsCount() {
+        return this.inputSymbols;
     }
 
     @Override
-    public String getResetsCount() {
-        return "resetCounter [Resets]: " + this.resets;
+    public int getResetsCount() {
+        return this.resets;
     }
 
     public List<O> answerQuery(List<I> inputs) {

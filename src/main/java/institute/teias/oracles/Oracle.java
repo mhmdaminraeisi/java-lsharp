@@ -1,11 +1,17 @@
 package institute.teias.oracles;
 
-import de.learnlib.filter.statistic.sul.ResetCounterSUL;
-import de.learnlib.filter.statistic.sul.SymbolCounterSUL;
-import de.learnlib.statistic.StatisticSUL;
+import de.learnlib.driver.simulator.MealySimulatorSUL;
 import de.learnlib.sul.SUL;
+import net.automatalib.automaton.transducer.CompactMealy;
 
 public abstract class Oracle<I, O> {
-    public abstract String getSymbolsCount();
-    public abstract String getResetsCount();
+    protected final CompactMealy<I, O> reference;
+    protected final SUL<I, O> sul;
+    public abstract int getSymbolsCount();
+    public abstract int getResetsCount();
+
+    public Oracle(CompactMealy<I, O> reference) {
+        this.reference = reference;
+        this.sul = new MealySimulatorSUL<>(reference);
+    }
 }
