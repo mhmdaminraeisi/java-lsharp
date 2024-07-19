@@ -1,6 +1,7 @@
 package institute.teias.learner;
 
 import com.google.common.collect.HashBiMap;
+import institute.teias.ads.Ads;
 import institute.teias.obsTree.Node;
 import institute.teias.obsTree.NormalObservationTree;
 import institute.teias.obsTree.ObservationTree;
@@ -23,8 +24,15 @@ public class LSharp<I, O> {
     private final HashMap<Node<I, O>, HashSet<Node<I, O>>> frontierToBasisMap = new HashMap<>();
     private final HashMap<Pair<Node<I, O>, Node<I, O>>, List<I>> witnessCache = new HashMap<>();
     private final HashBiMap<Node<I, O>, Integer> basisToStateMap = HashBiMap.create();
+    private final boolean useAds;
 
-    public LSharp(OutputOracle<I, O> outputOracle, TestOracle<I, O> testOracle, HashSet<I> alphabet) {
+    public LSharp(
+            OutputOracle<I, O> outputOracle,
+            TestOracle<I, O> testOracle,
+            HashSet<I> alphabet,
+            boolean useAds
+    ) {
+        this.useAds = useAds;
         this.outputOracle = outputOracle;
         this.testOracle = testOracle;
         this.alphabet = alphabet;
@@ -188,27 +196,105 @@ public class LSharp<I, O> {
         if (!this.frontierToBasisMap.containsKey(frontierState)) {
             throw new RuntimeException("Frontier state does not exists.");
         }
-        HashSet<Node<I, O>> basisCandidates = this.frontierToBasisMap.get(frontierState);
         this.updateBasisCandidates(frontierState);
-
-        int previousCandidatesSize = basisCandidates.size();
+        int previousCandidatesSize = this.frontierToBasisMap.get(frontierState).size();
         if (previousCandidatesSize < 2) return;
-        // TODO Add Ads implementations
+
+        Pair<List<I>, List<O>> inputsOutputs = this.useAds
+                ? this.identifyFrontierAds(frontierState)
+                : this.identifyFrontierSepSeq(frontierState);
+
+        this.observationTree.insertObservation(inputsOutputs.first(), inputsOutputs.second());
+
+        this.updateBasisCandidates(frontierState);
+        if (this.frontierToBasisMap.get(frontierState).size() == previousCandidatesSize) {
+            throw new RuntimeException("Did not increase norm.");
+        }
+    }
+
+    private Pair<List<I>, List<O>> identifyFrontierSepSeq(Node<I, O> frontierNode) {
+        HashSet<Node<I, O>> basisCandidates = this.frontierToBasisMap.get(frontierNode);
         Iterator<Node<I, O>> iterator = basisCandidates.iterator();
         Node<I, O> basisOne = iterator.next();
         Node<I, O> basisTwo = iterator.next();
 
         List<I> witness = getOrComputeWitness(basisOne, basisTwo);
-        List<I> inputs = this.observationTree.getAccessSequence(frontierState);
+        List<I> inputs = this.observationTree.getAccessSequence(frontierNode);
         inputs.addAll(witness);
         List<O> outputs = this.outputOracle.answerQuery(inputs);
+        return new Pair<>(inputs, outputs);
+    }
 
-        this.observationTree.insertObservation(frontierState, witness, outputs.subList(outputs.size()-witness.size(), outputs.size()));
-        this.updateBasisCandidates(frontierState);
+    private Pair<List<I>, List<O>> identifyFrontierAds(Node<I, O> frontierNode) {
+        // Todo oldBasisCandidates
+        return this.identifyFrontierAdsNoCache(frontierNode);
+    }
 
-        if (this.frontierToBasisMap.get(frontierState).size() >= previousCandidatesSize) {
-            throw new RuntimeException("Did not increase norm.");
+    private Pair<List<I>, List<O>> identifyFrontierAdsNoCache(Node<I, O> prefix) {
+        HashSet<Node<I, O>> basisCandidates = this.frontierToBasisMap.get(prefix);
+
+        Ads<I, O> suffix = new Ads<>(this.observationTree, basisCandidates);
+        return this.adaptiveOutputQuery(prefix, suffix);
+    }
+
+    private Pair<List<I>, List<O>> adaptiveOutputQuery(Node<I, O> prefix, Ads<I, O> suffix) {
+        Pair<List<I>, List<O>> treeReply = this.answerAdsFromTree(suffix, prefix);
+        suffix.resetToRoot();
+        List<I> prefixAccess = this.observationTree.getAccessSequence(prefix);
+
+        if (treeReply != null) {
+            List<I> inputs = new ArrayList<>(prefixAccess);
+            List<O> outputs = this.observationTree.getObservation(prefixAccess);
+            inputs.addAll(treeReply.first());
+            outputs.addAll(treeReply.second());
+            return new Pair<>(inputs, outputs);
         }
+
+        List<O> outputs = new ArrayList<>(this.outputOracle.answerQuery(prefixAccess));
+        Pair<List<I>, List<O>> sulReply = this.sulAdaptiveQuery(suffix);
+        List<I> inputs = new ArrayList<>(prefixAccess);
+        inputs.addAll(sulReply.first());
+        outputs.addAll(sulReply.second());
+        this.observationTree.insertObservation(inputs, outputs);
+
+        return new Pair<>(inputs, outputs);
+    }
+
+    // Assuming the prefix has been sent to the output oracle, perform the adaptive query.
+    private Pair<List<I>, List<O>> sulAdaptiveQuery(Ads<I, O> ads) {
+        List<I> inputsSent = new ArrayList<>();
+        List<O> outputsReceived = new ArrayList<>();
+        O lastOutput = null;
+
+        while (true) {
+            I nextInput = ads.nextInput(lastOutput);
+            if (nextInput == null) break;
+            inputsSent.add(nextInput);
+            O output = this.outputOracle.answerQueryWithoutReset(nextInput);
+            outputsReceived.add(output);
+            lastOutput = output;
+        }
+        return new Pair<>(inputsSent, outputsReceived);
+    }
+
+    private Pair<List<I>, List<O>> answerAdsFromTree(Ads<I, O> ads, Node<I, O> fromNode) {
+        O prevOutput = null;
+        List<I> inputsSent = new ArrayList<>();
+        List<O> outputsReceived = new ArrayList<>();
+        Node<I, O> currentNode = fromNode;
+
+        while (true) {
+            I nextInput = ads.nextInput(prevOutput);
+            if (nextInput == null) break;
+            inputsSent.add(nextInput);
+            Pair<O, Node<I, O>> outputSuccessor = currentNode.getOutputSuccessor(nextInput);
+            if (outputSuccessor == null) return null;
+            prevOutput = outputSuccessor.first();
+            outputsReceived.add(outputSuccessor.first());
+            currentNode = outputSuccessor.second();
+        }
+        ads.resetToRoot();
+        return new Pair<>(inputsSent, outputsReceived);
     }
 
     private List<I> getOrComputeWitness(Node<I, O> nodeOne, Node<I, O> nodeTwo) {
@@ -243,11 +329,10 @@ public class LSharp<I, O> {
     }
 
     private void exploreFrontier(Node<I, O> basisState, I input) {
-        // TODO Add ADS and SepSeq implementations.
         List<I> inputs = this.observationTree.getAccessSequence(basisState);
         inputs.add(input);
         List<O> outputs = this.outputOracle.answerQuery(inputs);
-        this.observationTree.insertOneTransition(basisState, input, outputs.getLast());
+        this.observationTree.insertObservation(basisState, input, outputs.getLast());
     }
 
     private void updateFrontierAndBasis() {

@@ -6,19 +6,6 @@ import de.learnlib.statistic.StatisticSUL;
 import de.learnlib.sul.SUL;
 
 public abstract class Oracle<I, O> {
-    protected final StatisticSUL<I, O> symbolCounterSUL;
-    protected final StatisticSUL<I, O> resetCounterSUL;
-
-    protected Oracle(SUL<I, O> sul) {
-        this.symbolCounterSUL = new SymbolCounterSUL<>("symbolCounter", sul);
-        this.resetCounterSUL = new ResetCounterSUL<>("resetCounter", this.symbolCounterSUL);
-    }
-
-    public String getSymbolsCount() {
-        return this.symbolCounterSUL.getStatisticalData().getSummary();
-    }
-
-    public String getResetsCount() {
-        return this.resetCounterSUL.getStatisticalData().getSummary();
-    }
+    public abstract String getSymbolsCount();
+    public abstract String getResetsCount();
 }
