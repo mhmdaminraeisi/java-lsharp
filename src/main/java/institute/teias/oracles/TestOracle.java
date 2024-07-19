@@ -35,6 +35,13 @@ public class TestOracle<I, O> extends Oracle<I, O> {
                 true,
                 new Random(System.currentTimeMillis())
         );
+//        this.equivalenceOracle = new RandomWordsEQOracle<>(
+//                new SULOracle<>(this.resetCounterSUL),
+//                2,
+//                10000,
+//                30000,
+//                new Random(System.currentTimeMillis())
+//        );
     }
 
     @Override
