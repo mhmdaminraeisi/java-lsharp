@@ -29,4 +29,7 @@ public abstract class ObservationTree<I, O> {
     }
     public abstract List<O> getObservation(Node<I, O> startState, List<I> inputs);
     public abstract Node<I, O> getSuccessor(Node<I, O> state, List<I> inputs);
+    public Node<I, O> getSuccessor(List<I> inputs) {
+        return this.getSuccessor(this.root, inputs);
+    }
 }

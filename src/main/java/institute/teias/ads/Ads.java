@@ -60,7 +60,7 @@ public class Ads<I, O> implements IAds<I, O> {
                 data.put(res.second().first(), res.second().second());
             }
             if (inputScore < maxInputScore) continue;
-            if (inputScore >= bestScore) {
+            if (bestInput == null || inputScore > bestScore) {
                 bestScore = inputScore;
                 bestInput = input;
                 bestChildren = data;

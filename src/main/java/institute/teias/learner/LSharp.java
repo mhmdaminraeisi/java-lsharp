@@ -24,15 +24,19 @@ public class LSharp<I, O> {
     private final HashMap<Node<I, O>, HashSet<Node<I, O>>> frontierToBasisMap = new HashMap<>();
     private final HashMap<Pair<Node<I, O>, Node<I, O>>, List<I>> witnessCache = new HashMap<>();
     private final HashBiMap<Node<I, O>, Integer> basisToStateMap = HashBiMap.create();
-    private final boolean useAds;
+    private final Rule2 rule2;
+    private final Rule3 rule3;
+    private int previousBasisSize = 0;
 
     public LSharp(
             OutputOracle<I, O> outputOracle,
             TestOracle<I, O> testOracle,
             HashSet<I> alphabet,
-            boolean useAds
+            Rule2 rule2,
+            Rule3 rule3
     ) {
-        this.useAds = useAds;
+        this.rule2 = rule2;
+        this.rule3 = rule3;
         this.outputOracle = outputOracle;
         this.testOracle = testOracle;
         this.alphabet = alphabet;
@@ -74,6 +78,7 @@ public class LSharp<I, O> {
     }
 
     private int getCounterExamplePrefixIndex(List<O> ceOutputs, List<O> hypothesisOutputs) {
+        // Todo Fix this?
         for (int i = 0; i < ceOutputs.size(); i++) {
             if (!ceOutputs.get(i).equals(hypothesisOutputs.get(i))) return i;
         }
@@ -200,9 +205,10 @@ public class LSharp<I, O> {
         int previousCandidatesSize = this.frontierToBasisMap.get(frontierState).size();
         if (previousCandidatesSize < 2) return;
 
-        Pair<List<I>, List<O>> inputsOutputs = this.useAds
-                ? this.identifyFrontierAds(frontierState)
-                : this.identifyFrontierSepSeq(frontierState);
+        Pair<List<I>, List<O>> inputsOutputs = rule3.equals(Rule3.SepSeq) || previousCandidatesSize == 2
+                ? this.identifyFrontierSepSeq(frontierState)
+                : this.identifyFrontierAds(frontierState);
+
 
         this.observationTree.insertObservation(inputsOutputs.first(), inputsOutputs.second());
 
@@ -234,25 +240,33 @@ public class LSharp<I, O> {
         HashSet<Node<I, O>> basisCandidates = this.frontierToBasisMap.get(prefix);
 
         Ads<I, O> suffix = new Ads<>(this.observationTree, basisCandidates);
-        return this.adaptiveOutputQuery(prefix, suffix);
+        return this.adaptiveOutputQuery(this.observationTree.getAccessSequence(prefix), suffix);
     }
 
-    private Pair<List<I>, List<O>> adaptiveOutputQuery(Node<I, O> prefix, Ads<I, O> suffix) {
-        Pair<List<I>, List<O>> treeReply = this.answerAdsFromTree(suffix, prefix);
-        suffix.resetToRoot();
-        List<I> prefixAccess = this.observationTree.getAccessSequence(prefix);
+    private Pair<List<I>, List<O>> adaptiveOutputQuery(List<I> prefix, I infix, Ads<I, O> suffix) {
+        List<I> newPrefix = new ArrayList<>(prefix);
+        newPrefix.add(infix);
+        return this.adaptiveOutputQuery(newPrefix, suffix);
+    }
 
-        if (treeReply != null) {
-            List<I> inputs = new ArrayList<>(prefixAccess);
-            List<O> outputs = this.observationTree.getObservation(prefixAccess);
-            inputs.addAll(treeReply.first());
-            outputs.addAll(treeReply.second());
-            return new Pair<>(inputs, outputs);
+    private Pair<List<I>, List<O>> adaptiveOutputQuery(List<I> prefix, Ads<I, O> suffix) {
+        Node<I, O> fromNode = this.observationTree.getSuccessor(prefix);
+
+        if (fromNode != null) {
+            Pair<List<I>, List<O>> treeReply = this.answerAdsFromTree(suffix, fromNode);
+            suffix.resetToRoot();
+            if (treeReply != null) {
+                List<I> inputs = new ArrayList<>(prefix);
+                List<O> outputs = this.observationTree.getObservation(prefix);
+                inputs.addAll(treeReply.first());
+                outputs.addAll(treeReply.second());
+                return new Pair<>(inputs, outputs);
+            }
         }
 
-        List<O> outputs = new ArrayList<>(this.outputOracle.answerQuery(prefixAccess));
+        List<O> outputs = new ArrayList<>(this.outputOracle.answerQuery(prefix));
         Pair<List<I>, List<O>> sulReply = this.sulAdaptiveQuery(suffix);
-        List<I> inputs = new ArrayList<>(prefixAccess);
+        List<I> inputs = new ArrayList<>(prefix);
         inputs.addAll(sulReply.first());
         outputs.addAll(sulReply.second());
         this.observationTree.insertObservation(inputs, outputs);
@@ -329,10 +343,38 @@ public class LSharp<I, O> {
     }
 
     private void exploreFrontier(Node<I, O> basisState, I input) {
-        List<I> inputs = this.observationTree.getAccessSequence(basisState);
-        inputs.add(input);
-        List<O> outputs = this.outputOracle.answerQuery(inputs);
-        this.observationTree.insertObservation(basisState, input, outputs.getLast());
+        Pair<List<I>, List<O>> inputsOutputs = this.getInputsOutputsRule2(basisState, input);
+        this.observationTree.insertObservation(inputsOutputs.first(), inputsOutputs.second());
+    }
+
+    private Pair<List<I>, List<O>> getInputsOutputsRule2(Node<I, O> basisState, I input) {
+        boolean updateR2Ads = (double) this.basis.size() >= 1.1 * (double) previousBasisSize;
+        if (updateR2Ads) {
+            this.previousBasisSize = this.basis.size();
+        }
+        if (rule2.equals(Rule2.Ads)) {
+            Ads<I, O> suffix = new Ads<>(this.observationTree, new HashSet<>(this.basis));
+            return this.adaptiveOutputQuery(this.observationTree.getAccessSequence(basisState), input, suffix);
+        }
+        if (rule2.equals(Rule2.Nothing) || rule2.equals(Rule2.SepSeq) && this.basis.size() == 1) {
+            List<I> inputs = this.observationTree.getAccessSequence(basisState);
+            inputs.add(input);
+            List<O> outputs = this.outputOracle.answerQuery(inputs);
+            return new Pair<>(inputs, outputs);
+        }
+        if (rule2.equals(Rule2.SepSeq)) {
+            Iterator<Node<I, O>> iterator = basis.iterator();
+            Node<I, O> basisOne = iterator.next();
+            Node<I, O> basisTwo = iterator.next();
+
+            List<I> witness = getOrComputeWitness(basisOne, basisTwo);
+            List<I> inputs = this.observationTree.getAccessSequence(basisState);
+            inputs.add(input);
+            inputs.addAll(witness);
+            List<O> outputs = this.outputOracle.answerQuery(inputs);
+            return new Pair<>(inputs, outputs);
+        }
+        return null;
     }
 
     private void updateFrontierAndBasis() {
