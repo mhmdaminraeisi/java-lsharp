@@ -3,6 +3,7 @@ package institute.teias;
 import java.io.File;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 
 import institute.teias.io.FileManager;
 import institute.teias.learner.LSharp;
@@ -35,7 +36,8 @@ public class Main {
         Rule3 rule3 = Rule3.Ads;
         OutputOracle<String, String> outputOracle = new OutputOracle<>(targetMealy);
         TestOracle<String, String> perfectOracle = new PerfectTestOracle<>(targetMealy);
-        TestOracle<String, String> testOracle = new HybridAdsTestOracle<>(targetMealy);
+        int seed = (new Random()).nextInt();
+        TestOracle<String, String> testOracle = new HybridAdsTestOracle<>(targetMealy, seed);
         HashSet<String> alphabet = new HashSet<>(targetMealy.getInputAlphabet());
 
         for (String arg : args) {
@@ -59,7 +61,7 @@ public class Main {
             if (arg.startsWith("-eq=")) {
                 String oracleName = arg.substring(4);
                 testOracle = switch (oracleName) {
-                    case "hads" -> new HybridAdsTestOracle<>(targetMealy);
+                    case "hads" -> new HybridAdsTestOracle<>(targetMealy, seed);
                     case "perfect" -> new PerfectTestOracle<>(targetMealy);
                     case "rand_walk" -> new RandomWalkTestOracle<>(targetMealy);
                     case "rand_words" -> new RandomWordsTestOracle<>(targetMealy);
@@ -70,7 +72,7 @@ public class Main {
         }
 
         LSharp<String, String> lSharp = new LSharp<>(outputOracle, testOracle, perfectOracle, alphabet, rule2, rule3);
-        boolean isSuccessful = lSharp.learnMealy();
+        boolean isSuccessful = lSharp.learnMealy().learned();
         System.out.println("Learn symbols count: " + outputOracle.getSymbolsCount());
         System.out.println("Learn resets count: " + outputOracle.getResetsCount());
         System.out.println("Test symbols count: " + testOracle.getSymbolsCount());

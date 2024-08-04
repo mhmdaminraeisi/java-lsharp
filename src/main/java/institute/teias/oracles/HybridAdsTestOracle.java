@@ -14,19 +14,20 @@ public class HybridAdsTestOracle<I, O> extends TestOracle<I, O> {
     private int resets = 0;
     private int inputSymbols = 0;
 
-    private final ProcessBuilder pb = new ProcessBuilder("/home/amin/projects/teias/java-lsharp/hybrid-ads/build/main",
-            "-p", "buggy", "-m", "random", "-k", "10", "-s", "hads", "-r", "10", "-x", String.valueOf((new Random()).nextInt()));
+    private final ProcessBuilder pb;
 
     // We buffer queries, in order to allow for parallel membership queries.
-    private final int BufferSize = 10;
+    private final int BufferSize = 1000;
     private final List<List<I>> buffer = new ArrayList<>(BufferSize);
 
     private Process process;
     private Writer processInput;
     private BufferedReader processOutput;
 
-    public HybridAdsTestOracle(CompactMealy<I, O> reference) {
+    public HybridAdsTestOracle(CompactMealy<I, O> reference, int seed) {
         super(reference);
+        pb = new ProcessBuilder("/home/amin/projects/teias/java-lsharp/hybrid-ads/build/main",
+                "-p", "buggy", "-m", "random", "-k", "10", "-s", "hads", "-r", "10", "-x", String.valueOf(seed));
     }
 
     private void setupProcess() throws IOException {

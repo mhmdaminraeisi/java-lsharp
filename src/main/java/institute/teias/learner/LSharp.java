@@ -47,18 +47,32 @@ public class LSharp<I, O> {
         this.basis.add(this.observationTree.getRoot());
     }
 
-    public boolean learnMealy() {
+    public LearnResult learnMealy() {
+        int round = 0;
         while (true) {
+            round += 1;
             CompactMealy<I, O> hypothesis = this.buildHypothesis();
             Pair<List<I>, List<O>> idealCe = this.perfectOracle.findCounterExample(hypothesis);
-            if (idealCe == null) return true;
+            if (idealCe == null) return this.createResult(true, round);
             Pair<List<I>, List<O>> ce = this.testOracle.findCounterExample(hypothesis);
             if (ce == null) {
                 System.out.println("No CE found!");
-                return false;
+                return this.createResult(false, round);
             };
             this.processCounterExample(hypothesis, ce.first(), ce.second());
         }
+    }
+
+    private LearnResult createResult(boolean isLearned, int rounds) {
+        return new LearnResult(
+                outputOracle.getSymbolsCount(),
+                outputOracle.getResetsCount(),
+                testOracle.getSymbolsCount(),
+                testOracle.getResetsCount(),
+                rounds,
+                isLearned
+
+        );
     }
 
     private CompactMealy<I, O> buildHypothesis() {
