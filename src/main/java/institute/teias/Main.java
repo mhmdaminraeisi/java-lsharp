@@ -1,7 +1,6 @@
 package institute.teias;
 
 import java.io.File;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 
@@ -30,56 +29,52 @@ public class Main {
             if (arg.startsWith("-fo=")) folderPath = arg.substring(4);
         }
 
-//        String filePath = folderPath + "/" + fileName;
-        String filePath = "src/main/resources/0.dot";
+        String filePath = folderPath + "/" + fileName;
         CompactMealy<String, String> targetMealy = FileManager.loadMealyFromDotFile(new File(filePath));
         Rule2 rule2 = Rule2.Ads;
         Rule3 rule3 = Rule3.Ads;
         OutputOracle<String, String> outputOracle = new OutputOracle<>(targetMealy);
-//        TestOracle<String, String> testOracle = new PerfectTestOracle<>(targetMealy);
+        TestOracle<String, String> perfectOracle = new PerfectTestOracle<>(targetMealy);
         TestOracle<String, String> testOracle = new HybridAdsTestOracle<>(targetMealy);
         HashSet<String> alphabet = new HashSet<>(targetMealy.getInputAlphabet());
 
-        String hypPath = "src/main/resources/00.dot";
-        CompactMealy<String, String> hypo = FileManager.loadMealyFromDotFile(new File(hypPath));
-        Pair<List<String>, List<String>> a = testOracle.findCounterExample(hypo);
-        System.out.println(a);
-//        for (String arg : args) {
-//            if (arg.startsWith("-r2=")) {
-//                String ruleName = arg.substring(4);
-//                rule2 = switch (ruleName) {
-//                    case "nothing" -> Rule2.Nothing;
-//                    case "sep_seq" -> Rule2.SepSeq;
-//                    case "ads" -> Rule2.Ads;
-//                    default -> throw new IllegalAccessException("-r2 value must be one of [nothing, sep_seq, ads].");
-//                };
-//            }
-//            if (arg.startsWith("-r3=")) {
-//                String ruleName = arg.substring(4);
-//                rule3 = switch (ruleName) {
-//                    case "sep_seq" -> Rule3.SepSeq;
-//                    case "ads" -> Rule3.Ads;
-//                    default -> throw new IllegalAccessException("-r3 value must be one of [sep_seq, ads].");
-//                };
-//            }
-//            if (arg.startsWith("-eq=")) {
-//                String oracleName = arg.substring(4);
-//                testOracle = switch (oracleName) {
-//                    case "perfect" -> new PerfectTestOracle<>(targetMealy);
-//                    case "rand_walk" -> new RandomWalkTestOracle<>(targetMealy);
-//                    case "rand_words" -> new RandomWordsTestOracle<>(targetMealy);
-//                    default ->
-//                            throw new IllegalAccessException("-eq value must be one of [perfect, rand_walk, rand_words].");
-//                };
-//            }
-//        }
-//
-//        LSharp<String, String> lSharp = new LSharp<>(outputOracle, testOracle, alphabet, rule2, rule3);
-//        CompactMealy<String, String> mealy = lSharp.learnMealy();
-//        System.out.println("Learn symbols count: " + outputOracle.getSymbolsCount());
-//        System.out.println("Learn resets count: " + outputOracle.getResetsCount());
-//        System.out.println("Test symbols count: " + testOracle.getSymbolsCount());
-//        System.out.println("Test resets count: " + testOracle.getResetsCount());
-//        System.out.println("Learned mealy size: " + mealy.size());
+        for (String arg : args) {
+            if (arg.startsWith("-r2=")) {
+                String ruleName = arg.substring(4);
+                rule2 = switch (ruleName) {
+                    case "nothing" -> Rule2.Nothing;
+                    case "sep_seq" -> Rule2.SepSeq;
+                    case "ads" -> Rule2.Ads;
+                    default -> throw new IllegalAccessException("-r2 value must be one of [nothing, sep_seq, ads].");
+                };
+            }
+            if (arg.startsWith("-r3=")) {
+                String ruleName = arg.substring(4);
+                rule3 = switch (ruleName) {
+                    case "sep_seq" -> Rule3.SepSeq;
+                    case "ads" -> Rule3.Ads;
+                    default -> throw new IllegalAccessException("-r3 value must be one of [sep_seq, ads].");
+                };
+            }
+            if (arg.startsWith("-eq=")) {
+                String oracleName = arg.substring(4);
+                testOracle = switch (oracleName) {
+                    case "hads" -> new HybridAdsTestOracle<>(targetMealy);
+                    case "perfect" -> new PerfectTestOracle<>(targetMealy);
+                    case "rand_walk" -> new RandomWalkTestOracle<>(targetMealy);
+                    case "rand_words" -> new RandomWordsTestOracle<>(targetMealy);
+                    default ->
+                            throw new IllegalAccessException("-eq value must be one of [hads, perfect, rand_walk, rand_words].");
+                };
+            }
+        }
+
+        LSharp<String, String> lSharp = new LSharp<>(outputOracle, testOracle, perfectOracle, alphabet, rule2, rule3);
+        boolean isSuccessful = lSharp.learnMealy();
+        System.out.println("Learn symbols count: " + outputOracle.getSymbolsCount());
+        System.out.println("Learn resets count: " + outputOracle.getResetsCount());
+        System.out.println("Test symbols count: " + testOracle.getSymbolsCount());
+        System.out.println("Test resets count: " + testOracle.getResetsCount());
+        System.out.println("Succeed: " + isSuccessful);
     }
 }

@@ -72,17 +72,12 @@ public class HybridAdsTestOracle<I, O> extends TestOracle<I, O> {
 
                     // If the buffer is filled, we can perform the checks (possibly in parallel)
                     if (buffer.size() >= BufferSize) {
-
-                        for (List<I> word : buffer) {
-                            System.out.println(word);
+                        Pair<List<I>, List<O>> ce = this.checkAndClearBuffer(hypothesis);
+                        if (ce != null) {
+                            closeAll();
+                            s.close();
+                            return ce;
                         }
-                        return null;
-//                        DefaultQuery<String, Word<String>> r = checkAndEmptyBuffer(machine);
-//                        if (r != null) {
-//                            closeAll();
-//                            s.close();
-//                            return r;
-//                        }
                     }
 
                     long endTime = System.currentTimeMillis();
@@ -102,10 +97,39 @@ public class HybridAdsTestOracle<I, O> extends TestOracle<I, O> {
     }
 
     private Pair<List<I>, List<O>> checkAndClearBuffer(CompactMealy<I, O> hypothesis) {
-        for (List<I> test : buffer) {
-            this.resets += 1;
+        Pair<List<I>, List<O>> ce = this.checkHasCE(hypothesis);
+        buffer.clear();
+        return ce;
+    }
 
+    private Pair<List<I>, List<O>> checkHasCE(CompactMealy<I, O> hypothesis) {
+        for (List<I> word : buffer) {
+            this.resets += 1;
+            List<I> ceInputs = new ArrayList<>();
+            List<O> ceOutputs = new ArrayList<>();
+            Integer hypCurrentState = hypothesis.getInitialState();
+            Integer refCurrentState = reference.getInitialState();
+
+            for (I input : word) {
+                ceInputs.add(input);
+                O hypOutput = hypothesis.getOutput(hypCurrentState, input);
+                hypCurrentState = hypothesis.getSuccessor(hypCurrentState ,input);
+
+                O refOutput = reference.getOutput(refCurrentState, input);
+                refCurrentState = reference.getSuccessor(refCurrentState, input);
+                ceOutputs.add(refOutput);
+                this.inputSymbols += 1;
+
+                if (hypOutput == null || refOutput == null) {
+                    throw new RuntimeException("Output must not be null!");
+                }
+
+                if (!hypOutput.equals(refOutput)) {
+                    return new Pair<>(ceInputs, ceOutputs);
+                }
+            }
         }
+        return null;
     }
 
     @Override

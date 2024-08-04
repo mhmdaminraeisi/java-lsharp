@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 public class LSharp<I, O> {
     private final OutputOracle<I, O> outputOracle;
     private final TestOracle<I, O> testOracle;
+    private final TestOracle<I, O> perfectOracle;
     private final HashSet<I> alphabet;
     private final ObservationTree<I, O> observationTree;
     private final HashSet<Node<I, O>> basis = new HashSet<>();
@@ -31,6 +32,7 @@ public class LSharp<I, O> {
     public LSharp(
             OutputOracle<I, O> outputOracle,
             TestOracle<I, O> testOracle,
+            TestOracle<I, O> perfectOracle,
             HashSet<I> alphabet,
             Rule2 rule2,
             Rule3 rule3
@@ -39,16 +41,22 @@ public class LSharp<I, O> {
         this.rule3 = rule3;
         this.outputOracle = outputOracle;
         this.testOracle = testOracle;
+        this.perfectOracle = perfectOracle;
         this.alphabet = alphabet;
         this.observationTree = new NormalObservationTree<>(this.alphabet);
         this.basis.add(this.observationTree.getRoot());
     }
 
-    public CompactMealy<I, O> learnMealy() {
+    public boolean learnMealy() {
         while (true) {
             CompactMealy<I, O> hypothesis = this.buildHypothesis();
+            Pair<List<I>, List<O>> idealCe = this.perfectOracle.findCounterExample(hypothesis);
+            if (idealCe == null) return true;
             Pair<List<I>, List<O>> ce = this.testOracle.findCounterExample(hypothesis);
-            if (ce == null) return hypothesis;
+            if (ce == null) {
+                System.out.println("No CE found!");
+                return false;
+            };
             this.processCounterExample(hypothesis, ce.first(), ce.second());
         }
     }
