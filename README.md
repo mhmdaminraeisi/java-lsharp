@@ -8,6 +8,21 @@ Ensure your machine supports Java 21 or higher. You can verify the installation 
 ```bash
 java -version
 ```
+
+Also ensure that the `make` and `cmake` commands are installed. Run the following commands to verify this:
+```bash
+make -version
+cmake -version
+```
+
+## Initialize
+We used [this](https://github.com/Jaxan/hybrid-ads) submodule to use test Oracle `hybrid-ads`.
+To load it, just run the following command:
+
+```bash
+chmod +x ./init.sh && ./init.sh
+```
+
 ## Running Instructions
 The experiment files, which are taken from the Rust project, are located in folder `src/main/resources/experimentModels`.
 If you want to create your own custom file, simply create a file named `custom.dot`
@@ -25,11 +40,18 @@ Additionally, the first line of your `custom.dot` file should represent one of t
 
 To run the algorithm on your own `custom.dot` file, just run the following command:
 ```bash
-./gradlew run --args="-f=custom.dot -eq=perfect -r2=ads -r3=ads"
+./gradlew run --args="-f=custom.dot -eq=hads -r2=ads -r3=ads"
 ```
-* Use `gladlew.bat` script file if you are a Windows user.
 * Set `-f` value to your experiment model file name.
-* Set `-eq` value to your preferred test oracle type. It must be one of the following values: `perfect`(default), `rand_walk`, or `rand_words`.
+* Set `-eq` value to your preferred test oracle type. It must be one of the following values: `hads`(default), `perfect`, `rand_walk`, or `rand_words`.
 * Set `-r2` value to your preferred rule 2 policy. It must be one of the following values: `nothing`, `sep_seq` or `ads`(default).
 * Set `-r3` value to your preferred rule 3 policy. It must be one of the following values: `sep_seq` or `ads`(default).
 * If you want to place your `custom.dot` file in your own folder, just set the `-fo` argument value to your folder path. The default folder path is `src/main/resources/experimentModels`.
+
+## Create Benchmarks
+We ran the algorithm on each of our models 100 times and saved the results in the file `results.csv`.
+To recreate the results, execute the following command: (The complete execution of this command may take about two or three hours!)
+
+```bash
+./gradlew runBenchmark
+```
